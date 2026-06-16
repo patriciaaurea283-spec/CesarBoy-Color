@@ -40,10 +40,7 @@ Alto-falante 8Ω 1W,
 Bateria LiPo 3.7V 2000mAh, 
 Módulo carregador TP4056, 
 Chave liga/desliga, 
-Botão Start, 
-Botão Select, 
-D-Pad (direcional), 
-Botões A e B, 
+8x push buttons
 Jumpers e fios de conexão.
 
 | Estrutura:
