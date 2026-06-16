@@ -3,13 +3,13 @@
 
 -Sobre o Projeto
 
-O CesarBoy Color é um console portátil desenvolvido com ESP32, projetado para executar jogos clássicos, com foco na execução do Pokémon Red. O projeto integra hardware, programação e modelagem 3D para criar uma experiência semelhante aos videogames portáteis da década de 1990.
+O CesarBoy Color é um console portátil desenvolvido com ESP32, projetado para executar jogos clássicos, com foco na execução do Pokémon Red. O projeto integra hardware e programação para criar uma experiência semelhante aos videogames portáteis da década de 1990.
 
 O console possui tela TFT colorida, botões de controle, sistema de áudio e bateria recarregável, permitindo que o usuário jogue de forma totalmente portátil.
 
 -Objetivo do Projeto
 
-O principal objetivo do CesarBoy Color é desenvolver um videogame portátil funcional capaz de executar o jogo Pokémon Red, proporcionando uma experiência inspirada nos consoles clássicos.
+O principal objetivo do CesarBoy Color é desenvolver um videogame portátil funcional capaz de executar jogos, proporcionando uma experiência inspirada nos consoles antigos.
 
 Além disso, o projeto busca demonstrar na prática conceitos de:
 
@@ -33,23 +33,22 @@ A alimentação do sistema é fornecida por uma bateria LiPo recarregável, perm
 
 | Eletrônicos:
 
-ESP32 DevKit V1
-Display TFT 2.4" SPI
-Módulo de áudio MAX98357A
-Alto-falante 8Ω 1W
-Bateria LiPo 3.7V 2000mAh
-Módulo carregador TP4056
-Chave liga/desliga
-Botão Start
-Botão Select
-D-Pad (direcional)
-Botões A e B
-Jumpers e fios de conexão
+ESP32 DevKit V1, 
+Display TFT 2.4" SPI, 
+Módulo de áudio MAX98357A, 
+Alto-falante 8Ω 1W, 
+Bateria LiPo 3.7V 2000mAh, 
+Módulo carregador TP4056, 
+Chave liga/desliga, 
+Botão Start, 
+Botão Select, 
+D-Pad (direcional), 
+Botões A e B, 
+Jumpers e fios de conexão.
 
 | Estrutura:
 
-Compartimento para bateria
-Suportes internos para os componentes
+Compartimento para bateria e suportes internos para os componentes
 
 -Aprendizados Envolvidos.
 
