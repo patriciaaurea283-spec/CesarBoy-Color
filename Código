@@ -1,1 +1,58 @@
+# CesarBoy Color - Código
 
+#Base de Hardware
+ESP32-WROOM-32
+Display ST7789 240x320
+MicroSD
+Botões: D-Pad, A, B, Start e Select
+
+#Mapeamento de Pinos
+TFT ST7789
+MOSI = GPIO22
+SCK = GPIO23
+CS = GPIO0
+DC = GPIO5
+RST = GPIO16
+
+#MicroSD
+MOSI = GPIO22
+SCK = GPIO23
+MISO = GPIO19
+CS = GPIO17
+
+#Botões
+UP = GPIO12
+DOWN = GPIO13
+LEFT = GPIO14
+RIGHT = GPIO27
+A = GPIO26
+B = GPIO25
+START = GPIO33
+SELECT = GPIO32
+
+#Áudio (opcional) = GPIO21
+
+#Arquitetura Recomendada
+Inicialização:
+1. GPIO
+2. Display
+3. Cartão SD
+4. Áudio
+5. Launcher
+
+#Fluxo:
+ESP32 -> Splash Screen -> Menu -> Leitura do SD -> Lista de ROMs -> Execução do jogo
+
+#Estrutura do Cartão SD
+roms/gb
+roms/gbc
+saves/
+screenshots/
+
+Configuração ST7789
+#define ST7789_DRIVER
+#define TFT_RGB_ORDER TFT_BGR
+#define SPI_FREQUENCY 27000000
+
+#Integração com Retro-Go
+#Usar uma fork compatível com ST7789 e adaptar os arquivos de configuração para os GPIOs definidos acima. Testar TFT, botões e SD individualmente antes da integração completa.
