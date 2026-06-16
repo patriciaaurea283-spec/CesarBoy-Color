@@ -73,4 +73,4 @@ Resolução de problemas técnicos
 -Resultado Esperado:
 Criar um console portátil funcional, compacto e de baixo custo, capaz de executar Pokémon Red, demonstrando conhecimentos de programação, eletrônica e prototipagem em um único projeto.
 
--Sobre o vídeo explicando o projeto: https://www.canva.com/design/DAHMvAJsIro/4tX8TITugCEPOUIzdbMZbQ/edit
+-Sobre o vídeo explicando o projeto: https://canva.link/3eyybsnj50zm2fp
