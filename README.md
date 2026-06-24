@@ -1,57 +1,54 @@
-# 🎮CESAR Boy Color
+# 🎮CESAR Boy
 
 
 -Sobre o Projeto
 
-O CesarBoy Color é um console portátil desenvolvido com ESP32, projetado para executar jogos clássicos, com foco na execução do Pokémon Red. O projeto integra hardware e programação para criar uma experiência semelhante aos videogames portáteis da década de 1990.
+O Cesar Boy é um jogo portátil baseado no clássico Tetris, desenvolvido utilizando a plataforma ESP32. O projeto combina conceitos de programação embarcada, eletrônica e desenvolvimento de jogos para recriar a experiência do famoso jogo de encaixe de peças em um dispositivo compacto e de baixo custo.
 
-O console possui tela TFT colorida, botões de controle, sistema de áudio e bateria recarregável, permitindo que o usuário jogue de forma totalmente portátil.
+O sistema utiliza um display TFT colorido para exibir o jogo, um módulo de áudio para reprodução de efeitos sonoros, um botão para interação com o jogador e uma bateria LiPo recarregável, permitindo seu funcionamento de forma totalmente portátil.
 
 -Objetivo do Projeto
 
-O principal objetivo do CesarBoy Color é desenvolver um videogame portátil funcional capaz de executar jogos, proporcionando uma experiência inspirada nos consoles antigos.
+O principal objetivo do ESPTris é desenvolver uma versão funcional do jogo Tetris, demonstrando a capacidade do ESP32 para aplicações gráficas e interativas.
 
-Além disso, o projeto busca demonstrar na prática conceitos de:
+Além disso, o projeto busca aplicar na prática conceitos de:
 
-Sistemas embarcados;
-Programação com ESP32;
-Integração de hardware e software;
-Desenvolvimento de interfaces gráficas;
-Prototipagem.
+Programação em C para ESP32;
+Integração entre hardware e software;
+Manipulação gráfica em displays TFT;
+Controle de dispositivos eletrônicos;
+Prototipagem de sistemas interativos.
 
 -Como o Sistema Funciona.
 
-Ao ligar o console pela chave liga/desliga, o ESP32 inicializa o sistema e carrega o jogo na tela TFT.
+Ao ligar o dispositivo, o ESP32 inicializa todos os componentes do sistema e exibe a interface do jogo no display TFT.
 
-Os comandos do jogador são enviados pelos botões direcionais (D-Pad) e pelos botões A, B, Start e Select.
+As peças do Tetris são geradas automaticamente e exibidas na tela. O jogador utiliza o push button para realizar ações configuradas no jogo, como iniciar, pausar ou controlar as peças.
 
-O ESP32 interpreta esses comandos e atualiza as imagens exibidas na tela, enquanto os efeitos sonoros são reproduzidos pelo módulo de áudio e pelo alto-falante.
+O ESP32 processa as entradas recebidas, atualiza o estado do jogo em tempo real e envia os gráficos para o display TFT. Os efeitos sonoros são reproduzidos pelo módulo de áudio e enviados ao alto-falante.
 
-A alimentação do sistema é fornecida por uma bateria LiPo recarregável, permitindo o uso do console sem conexão direta à energia.
+A alimentação do sistema é fornecida por uma bateria LiPo recarregável, permitindo que o jogo funcione de forma portátil sem necessidade de conexão contínua à energia.
 
 -Componentes do Projeto.
 
 | Eletrônicos:
 
-ESP32 DevKit V1, 
-Display TFT 2.4" SPI, 
-Módulo de áudio MAX98357A, 
-Alto-falante 8Ω 1W, 
-Bateria LiPo 3.7V 2000mAh, 
-Módulo carregador TP4056, 
-Chave liga/desliga, 
-8x push buttons
-Jumpers e fios de conexão.
+1x ESP32 DevKit V1
+1x Display TFT 2.4" SPI
+1x Módulo de áudio
+1x Alto-falante
+1x Bateria LiPo 3.7V
+1x Push Button
+Jumpers e fios de conexão
 
 | Estrutura:
 
-Compartimento para bateria e suportes internos para os componentes
+suportes internos para os componentes
 
 -Aprendizados Envolvidos.
 
 ✔ Eletrônica:
 Circuitos eletrônicos
-Alimentação por bateria
 Comunicação SPI
 Sistemas de áudio digital
 
@@ -71,6 +68,6 @@ Divisão de tarefas
 Resolução de problemas técnicos
 
 -Resultado Esperado:
-Criar um console portátil funcional, compacto e de baixo custo, capaz de executar Pokémon Red, demonstrando conhecimentos de programação, eletrônica e prototipagem em um único projeto.
+Criar um console portátil funcional, compacto e de baixo custo, capaz de executar Tetris, demonstrando conhecimentos de programação, eletrônica e prototipagem em um único projeto.
 
--Sobre o vídeo explicando o projeto: https://canva.link/3eyybsnj50zm2fp
+-Sobre o vídeo explicando o projeto: 
