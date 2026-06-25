@@ -1,278 +1,429 @@
 #include <SPI.h>
 #include <TFT_eSPI.h>
-// Inicialização da instância do display gerenciado pela biblioteca TFT_eSPI
+
+// Inicialização da instância do display
 TFT_eSPI tft = TFT_eSPI();
-// Definições físicas das portas de Entrada/Saída (GPIO)
-#define PIN_BTN_ESQUERDA 12
-#define PIN_BTN_DIREITA 13
-#define PIN_BTN_TIRO 14
-// Dimensões espaciais do ambiente gráfico do jogo
+
 #define LARGURA_TELA 240
-#define ALTURA_TELA 240
-// Estruturas de dados para gerenciamento das entidades do jogo
-struct Nave {
-int x;
-int y;
-int largura;
-int altura;
-int vidas;
-};
-struct Tiro {
-int x;
-int y;
-bool ativo;
-};
-struct Alien {
-  int x;
-  int y;
-  bool vivo;
+#define ALTURA_TELA 320
+
+// --- NOVO SPRITE DA NAVE HD (24x16 pixels) ---
+const unsigned char bitmap_nave_24x16[] PROGMEM = {
+  0x00, 0x18, 0x00, 0x00, 0x3C, 0x00, 0x00, 0x7E, 0x00, 0x00, 0xFF, 0x00, 
+  0x01, 0xFF, 0x80, 0x03, 0xFF, 0xC0, 0x03, 0xFF, 0xC0, 0x07, 0xFF, 0xE0, 
+  0x0F, 0xFF, 0xF0, 0x1F, 0xFF, 0xF8, 0x3F, 0xFF, 0xFC, 0x7F, 0xFF, 0xFE, 
+  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0x7E, 0x00, 0x7E
 };
 
-// Constantes estruturais de jogabilidade
-#define MAX_TIROS_JOGADOR 3
+// --- NOVO SPRITE DO ALIEN HD (24x16 pixels) ---
+const unsigned char bitmap_alien_24x16[] PROGMEM = {
+  0x00, 0x00, 0x00, 0x01, 0x00, 0x80, 0x03, 0x81, 0xC0, 0x07, 0xC3, 0xE0, 
+  0x0F, 0xE7, 0xF0, 0x1F, 0xFF, 0xF8, 0x3F, 0xFF, 0xFC, 0x3F, 0x18, 0xFC, 
+  0x3F, 0x18, 0xFC, 0x3F, 0xFF, 0xFC, 0x1F, 0xFF, 0xF8, 0x0F, 0x81, 0xF0, 
+  0x07, 0x00, 0xE0, 0x03, 0x00, 0xC0, 0x0D, 0x00, 0xB0, 0x18, 0x00, 0x18
+};
+
+// --- SPRITE DO CHEFAO (32x16 pixels) ---
+const unsigned char bitmap_boss_32x16[] PROGMEM = {
+  0x01, 0xFF, 0xFF, 0x80, 0x07, 0xFF, 0xFF, 0xE0, 0x1F, 0xFF, 0xFF, 0xF8, 
+  0x3F, 0x00, 0x00, 0xFC, 0x7E, 0x3F, 0xFC, 0x7E, 0x7C, 0xFF, 0xFF, 0x3E, 
+  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 
+  0xFF, 0x00, 0x00, 0xFF, 0x7F, 0xFF, 0xFF, 0xFE, 0x3F, 0xFF, 0xFF, 0xFC, 
+  0x1F, 0xFF, 0xFF, 0xF8, 0x0F, 0x80, 0x01, 0xF0, 0x07, 0x80, 0x01, 0xE0, 
+  0x03, 0x00, 0x00, 0xC0
+};
+
+struct Nave { int x; int y; int vidas; };
+struct Tiro { int x; int y; bool ativo; };
+struct Alien { int x; int y; bool vivo; };
+struct Boss { int x; int y; int hp; bool vivo; int direcao; };
+
+#define MAX_TIROS_JOGADOR 4
 #define QTD_ALIENS_LINHAS 4
 #define QTD_ALIENS_COLUNAS 5
 #define TOTAL_ALIENS (QTD_ALIENS_LINHAS * QTD_ALIENS_COLUNAS)
-// Alocação estática das variáveis de controle
+
 Nave jogador;
 Tiro tirosJogador[MAX_TIROS_JOGADOR];
 Alien aliens[TOTAL_ALIENS];
+Boss boss;
 Tiro tiroAlien;
+
 int score = 0;
-bool jogoAtivo = true;
-int direcaoAliens = 1; // 1: Direita | -1: Esquerda
+int fase = 1;
+
+// Variáveis de Controle de Estado do Jogo
+bool aguardandoInicio = true; 
+bool jogoAtivo = false;       
+
+int direcaoAliens = 1;     
 int velocidadeAliens = 2;
+int chanceTiroAlien = 50; 
+
+int direcaoNave = 0; 
+unsigned long tempoUltimoComando = 0;
+
 unsigned long ultimoFrame = 0;
-const int frameDelay = 33; // Taxa de atualização aproximada de 30 FPS
-// Prototipagem modular das funções do sistema
+const int frameDelay = 33; 
+
+// Prototipagem das funções
+void mostrarTelaInicial();
 void inicializarJogo();
+void iniciarFase();
 void lerEntradas();
 void atualizarJogo();
 void renderizarJogo();
 void verificarColisoes();
-void desenharNave(int x, int y, uint16_t cor);
-void desenharAlien(int x, int y, uint16_t cor);
+void desenharFundoGalaxia();
+
 void setup() {
-Serial.begin(115200);
-// Configuração dos pinos dos botões com resistores internos ativados
-pinMode(PIN_BTN_ESQUERDA, INPUT_PULLUP);
-pinMode(PIN_BTN_DIREITA, INPUT_PULLUP);
-pinMode(PIN_BTN_TIRO, INPUT_PULLUP);
-// Inicialização física do controlador gráfico do ST7789
-tft.init();
-tft.setRotation(1); // Ajusta a orientação conforme montagem mecânica
-tft.fillScreen(TFT_BLACK);
-inicializarJogo();
+  Serial.begin(115200);
+  tft.init();
+  tft.setRotation(0); 
+  
+  // Alterado para false conforme solicitado
+  tft.invertDisplay(false); 
+  
+  // Limpa a tela e exibe a Tela de Título do jogo
+  mostrarTelaInicial();
 }
+
 void loop() {
-// Controle estrito de temporização estável do Game Loop
-if (millis() - ultimoFrame >= frameDelay) {
-ultimoFrame = millis();
-if (jogoAtivo) {
-lerEntradas();
-atualizarJogo();
-verificarColisoes();
-renderizarJogo();
-} else {
-// Rotina gráfica de encerramento de partida (Fim de Jogo ou Vitória)
-if (score >= TOTAL_ALIENS * 10) {
-tft.setTextColor(TFT_GREEN, TFT_BLACK);
-tft.drawCentreString("VITORIA!", LARGURA_TELA / 2, ALTURA_TELA / 2 - 15, 4);
-} else {
-tft.setTextColor(TFT_RED, TFT_BLACK);
-tft.drawCentreString("GAME OVER", LARGURA_TELA / 2, ALTURA_TELA / 2 - 15, 4);
+  if (millis() - ultimoFrame >= frameDelay) {
+    ultimoFrame = millis();
+    
+    // ESTADO 1: TELA INICIAL (Aguardando Start)
+    if (aguardandoInicio) {
+      if (Serial.available() > 0) {
+        char cmd = tolower(Serial.read());
+        if (cmd == 'w' || cmd == ' ') {
+          aguardandoInicio = false;
+          jogoAtivo = true;
+          inicializarJogo(); // Dá o pontapé inicial no jogo
+        }
+      }
+    } 
+    // ESTADO 2: JOGANDO
+    else if (jogoAtivo) {
+      lerEntradas();
+      atualizarJogo();
+      verificarColisoes();
+      renderizarJogo();
+    } 
+    // ESTADO 3: GAME OVER OU VITÓRIA
+    else {
+      if (fase > 4) {
+        tft.setTextColor(TFT_GREEN, TFT_BLACK);
+        tft.drawCentreString("VITORIA EPICA!", LARGURA_TELA / 2, ALTURA_TELA / 2 - 20, 4);
+      } else {
+        tft.setTextColor(TFT_RED, TFT_BLACK);
+        tft.drawCentreString("GAME OVER", LARGURA_TELA / 2, ALTURA_TELA / 2 - 20, 4);
+      }
+      tft.setTextColor(TFT_WHITE, TFT_BLACK);
+      tft.drawCentreString("Envie 'W' para reiniciar", LARGURA_TELA / 2, ALTURA_TELA / 2 + 20, 2);
+      
+      // Aguarda comando para jogar novamente
+      if (Serial.available() > 0) {
+        char cmd = tolower(Serial.read());
+        if (cmd == 'w' || cmd == ' ') {
+          inicializarJogo();
+          jogoAtivo = true;
+        }
+      }
+    }
+  }
 }
-+ 20, 2);
-tft.setTextColor(TFT_WHITE, TFT_BLACK);
-tft.drawCentreString("Pressione ATIRAR para reiniciar", LARGURA_TELA / 2, ALTURA_TELA / 2
-// Monitoramento para reinicialização rápida da partida
-if (digitalRead(PIN_BTN_TIRO) == LOW) {
-inicializarJogo();
-tft.fillScreen(TFT_BLACK);
-jogoAtivo = true;
+
+void mostrarTelaInicial() {
+  tft.fillScreen(TFT_BLACK);
+  desenharFundoGalaxia();
+  
+  tft.setTextColor(TFT_GREEN, TFT_BLACK);
+  tft.drawCentreString("SPACE INVADERS", LARGURA_TELA / 2, ALTURA_TELA / 2 - 30, 4);
+  
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.drawCentreString("Pressione 'W' ou Espaco", LARGURA_TELA / 2, ALTURA_TELA / 2 + 20, 2);
+  tft.drawCentreString("para comecar", LARGURA_TELA / 2, ALTURA_TELA / 2 + 40, 2);
+  
+  Serial.println("Aguardando comando (W ou Espaco) para iniciar...");
 }
+
+void desenharFundoGalaxia() {
+  for (int i = 0; i < 60; i++) {
+    int x = random(0, LARGURA_TELA);
+    int y = random(0, ALTURA_TELA);
+    uint16_t cor = TFT_WHITE;
+    int tipo = random(0, 3);
+    if(tipo == 1) cor = tft.color565(100, 200, 255); 
+    if(tipo == 2) cor = tft.color565(200, 100, 255); 
+    tft.drawPixel(x, y, cor);
+  }
 }
-}
-}
+
 void inicializarJogo() {
-score = 0;
-jogador.largura = 16;
-jogador.altura = 8;
-jogador.x = (LARGURA_TELA - jogador.largura) / 2;
-jogador.y = ALTURA_TELA - 20;
-jogador.vidas = 3;
-// Reset do estado de vetores de projéteis do usuário
-for (int i = 0; i < MAX_TIROS_JOGADOR; i++) {
-tirosJogador[i].ativo = false;
+  score = 0;
+  fase = 1;
+  jogador.vidas = 3;
+  iniciarFase();
 }
-// Reset do estado do projétil inimigo
-tiroAlien.ativo = false;
-// Construção e posicionamento matricial inicial da frota alienígena
-int index = 0;
-for (int l = 0; l < QTD_ALIENS_LINHAS; l++) {
-for (int c = 0; c < QTD_ALIENS_COLUNAS; c++) {
-aliens[index].x = 20 + c * 30;
-aliens[index].y = 35 + l * 18;
-aliens[index].vivo = true;
-index++;
+
+void iniciarFase() {
+  tft.fillScreen(TFT_BLACK);
+  desenharFundoGalaxia(); 
+  
+  jogador.x = (LARGURA_TELA - 24) / 2;
+  jogador.y = ALTURA_TELA - 25; 
+  direcaoNave = 0;
+
+  for (int i = 0; i < MAX_TIROS_JOGADOR; i++) tirosJogador[i].ativo = false;
+  tiroAlien.ativo = false;
+  
+  if (fase <= 3) {
+    if (fase == 1) { velocidadeAliens = 2; chanceTiroAlien = 45; }
+    if (fase == 2) { velocidadeAliens = 3; chanceTiroAlien = 30; }
+    if (fase == 3) { velocidadeAliens = 4; chanceTiroAlien = 15; }
+    
+    int index = 0;
+    for (int l = 0; l < QTD_ALIENS_LINHAS; l++) {
+      for (int c = 0; c < QTD_ALIENS_COLUNAS; c++) {
+        aliens[index].x = 10 + c * 40; 
+        aliens[index].y = 35 + l * 26;
+        aliens[index].vivo = true;
+        index++;
+      }
+    }
+    
+    tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+    tft.drawCentreString("FASE " + String(fase), LARGURA_TELA / 2, ALTURA_TELA / 2, 4);
+    delay(1500);
+    tft.fillScreen(TFT_BLACK);
+    desenharFundoGalaxia();
+    
+  } else if (fase == 4) {
+    velocidadeAliens = 3;
+    chanceTiroAlien = 8; 
+    
+    boss.x = LARGURA_TELA / 2 - 16;
+    boss.y = 30;
+    boss.hp = 50; 
+    boss.vivo = true;
+    boss.direcao = 1;
+    
+    tft.setTextColor(TFT_RED, TFT_BLACK);
+    tft.drawCentreString("ALERTA: CHEFAO!", LARGURA_TELA / 2, ALTURA_TELA / 2, 4);
+    delay(2000);
+    tft.fillScreen(TFT_BLACK);
+    desenharFundoGalaxia();
+  }
 }
-}
-}
+
 void lerEntradas() {
-// Verificação de clique lógico (Botão ativo em nível lógico BAIXO devido ao Pull-Up)
-if (digitalRead(PIN_BTN_ESQUERDA) == LOW) {
-jogador.x -= 4;
-if (jogador.x < 0) jogador.x = 0;
+  while (Serial.available() > 0) {
+    char comando = Serial.read(); // Lemos o char original sem converter para minúscula ainda
+    tempoUltimoComando = millis();
+    
+    // VERIFICAÇÃO PARA AS SETINHAS (Códigos ANSI que começam com ESC = 27)
+    if (comando == 27) {
+      delay(2); // Pequena pausa para garantir que os próximos bytes chegaram na porta Serial
+      if (Serial.available() >= 2) {
+        char colchete = Serial.read();
+        char direcaoSeta = Serial.read();
+        
+        if (colchete == '[') {
+          if (direcaoSeta == 'D') direcaoNave = -1;      // Seta Esquerda
+          else if (direcaoSeta == 'C') direcaoNave = 1;  // Seta Direita
+        }
+      }
+    } 
+    // VERIFICAÇÃO PARA TECLAS NORMAIS (A, D, W, Espaço)
+    else {
+      comando = tolower(comando);
+      if (comando == 'a') direcaoNave = -1;
+      else if (comando == 'd') direcaoNave = 1;
+      else if (comando == 'w' || comando == ' ') {
+        for (int i = 0; i < MAX_TIROS_JOGADOR; i++) {
+          if (!tirosJogador[i].ativo) {
+            tirosJogador[i].x = jogador.x + 10; 
+            tirosJogador[i].y = jogador.y - 4;
+            tirosJogador[i].ativo = true;
+            break; 
+          }
+        }
+      }
+    }
+  }
+  
+  if (millis() - tempoUltimoComando > 150) direcaoNave = 0;
 }
-if (digitalRead(PIN_BTN_DIREITA) == LOW) {
-jogador.x += 4;
-if (jogador.x > LARGURA_TELA - jogador.largura) jogador.x = LARGURA_TELA - jogador.largura;
-}
-if (digitalRead(PIN_BTN_TIRO) == LOW) {
-// Alocação dinâmica de tiro no primeiro slot ocioso identificado
-for (int i = 0; i < MAX_TIROS_JOGADOR; i++) {
-if (!tirosJogador[i].ativo) {
-tirosJogador[i].x = jogador.x + (jogador.largura / 2);
-tirosJogador[i].y = jogador.y - 4;
-tirosJogador[i].ativo = true;
-break;
-}
-}
-}
-}
+
 void atualizarJogo() {
-// Translação física ascendente dos disparos do jogador
-for (int i = 0; i < MAX_TIROS_JOGADOR; i++) {
-if (tirosJogador[i].ativo) {
-tirosJogador[i].y -= 6;
-if (tirosJogador[i].y < 0) {
-tirosJogador[i].ativo = false;
+  if (direcaoNave != 0) {
+    int velNave = 6;
+    jogador.x += direcaoNave * velNave;
+    
+    if (jogador.x < 0) { jogador.x = 0; direcaoNave = 0; }
+    if (jogador.x > LARGURA_TELA - 24) { jogador.x = LARGURA_TELA - 24; direcaoNave = 0; }
+    
+    if (direcaoNave > 0) tft.fillRect(jogador.x - velNave, jogador.y, velNave, 16, TFT_BLACK);
+    else if (direcaoNave < 0) tft.fillRect(jogador.x + 24, jogador.y, velNave, 16, TFT_BLACK);
+  }
+
+  for (int i = 0; i < MAX_TIROS_JOGADOR; i++) {
+    if (tirosJogador[i].ativo) {
+      tirosJogador[i].y -= 10; 
+      if (tirosJogador[i].y < 0) {
+        tft.fillRect(tirosJogador[i].x, 0, 4, 15, TFT_BLACK); 
+        tirosJogador[i].ativo = false;
+      }
+    }
+  }
+  
+  if (fase <= 3) {
+    bool alcancouBorda = false;
+    for (int i = 0; i < TOTAL_ALIENS; i++) {
+      if (aliens[i].vivo) {
+        aliens[i].x += direcaoAliens * velocidadeAliens;
+        
+        if (direcaoAliens > 0) tft.fillRect(aliens[i].x - velocidadeAliens, aliens[i].y, velocidadeAliens, 16, TFT_BLACK);
+        else tft.fillRect(aliens[i].x + 24, aliens[i].y, velocidadeAliens, 16, TFT_BLACK);
+        
+        if (aliens[i].x > LARGURA_TELA - 26 || aliens[i].x < 2) alcancouBorda = true;
+      }
+    }
+    
+    if (alcancouBorda) {
+      direcaoAliens = -direcaoAliens;
+      for (int i = 0; i < TOTAL_ALIENS; i++) {
+        if (aliens[i].vivo) {
+          tft.fillRect(aliens[i].x, aliens[i].y, 24, 16, TFT_BLACK); 
+          aliens[i].y += 16;
+          if (aliens[i].y >= jogador.y - 12) jogoAtivo = false;
+        }
+      }
+    }
+    
+    if (!tiroAlien.ativo && random(0, chanceTiroAlien) == 5) {
+      int alienSorteado = random(0, TOTAL_ALIENS);
+      if (aliens[alienSorteado].vivo) {
+        tiroAlien.x = aliens[alienSorteado].x + 10;
+        tiroAlien.y = aliens[alienSorteado].y + 16;
+        tiroAlien.ativo = true;
+      }
+    }
+    
+  } else if (fase == 4) {
+    if (boss.vivo) {
+      boss.x += boss.direcao * velocidadeAliens;
+      
+      if (boss.direcao > 0) tft.fillRect(boss.x - velocidadeAliens, boss.y, velocidadeAliens, 16, TFT_BLACK);
+      else tft.fillRect(boss.x + 32, boss.y, velocidadeAliens, 16, TFT_BLACK);
+      
+      if (boss.x > LARGURA_TELA - 34 || boss.x < 2) boss.direcao = -boss.direcao;
+      
+      if (!tiroAlien.ativo && random(0, chanceTiroAlien) == 5) {
+        tiroAlien.x = boss.x + 14;
+        tiroAlien.y = boss.y + 16;
+        tiroAlien.ativo = true;
+      }
+    }
+  }
+  
+  if (tiroAlien.ativo) {
+    tiroAlien.y += 8;
+    if (tiroAlien.y > ALTURA_TELA) {
+      tft.fillRect(tiroAlien.x, ALTURA_TELA - 15, 4, 15, TFT_BLACK);
+      tiroAlien.ativo = false;
+    }
+  }
 }
-}
-}
-// Movimentação em bloco e inversão de sentido lateral da frota inimiga
-bool alcancouBorda = false;
-for (int i = 0; i < TOTAL_ALIENS; i++) {
-if (aliens[i].vivo) {
-aliens[i].x += direcaoAliens * velocidadeAliens;
-if (aliens[i].x > LARGURA_TELA - 14 || aliens[i].x < 2) {
-alcancouBorda = true;
-}
-}
-}
-if (alcancouBorda) {
-direcaoAliens = -direcaoAliens;
-for (int i = 0; i < TOTAL_ALIENS; i++) {
-aliens[i].y += 8;
-// Validação de condição de derrota por invasão de solo
-if (aliens[i].y >= jogador.y - 10 && aliens[i].vivo) {
-jogoAtivo = false;
-}
-}
-}
-// Gerador randômico de contra-ataques inimigos (IA simples de disparo)
-if (!tiroAlien.ativo && random(0, 40) == 7) {
-int alienSorteado = random(0, TOTAL_ALIENS);
-if (aliens[alienSorteado].vivo) {
-tiroAlien.x = aliens[alienSorteado].x + 6;
-tiroAlien.y = aliens[alienSorteado].y + 10;
-tiroAlien.ativo = true;
-}
-}
-// Translação física descendente dos projéteis inimigos
-if (tiroAlien.ativo) {
-tiroAlien.y += 5;
-if (tiroAlien.y > ALTURA_TELA) {
-tiroAlien.ativo = false;
-}
-}
-}
+
 void verificarColisoes() {
-// Varredura de intersecção: Projéteis do Jogador contra Matriz Alienígena
-for (int i = 0; i < MAX_TIROS_JOGADOR; i++) {
-if (tirosJogador[i].ativo) {
-for (int j = 0; j < TOTAL_ALIENS; j++) {
-if (aliens[j].vivo) {
-// Caixa de colisão baseada na área geométrica do sprite do alien (12x10)
-if (tirosJogador[i].x >= aliens[j].x && tirosJogador[i].x <= aliens[j].x + 12 &&
-tirosJogador[i].y >= aliens[j].y && tirosJogador[i].y <= aliens[j].y + 10) {
-// Eliminação pontual imediata com limpeza rápida de memória de tela
-tft.fillRect(aliens[j].x, aliens[j].y, 12, 10, TFT_BLACK);
-aliens[j].vivo = false;
-tirosJogador[i].ativo = false;
-score += 10;
-break;
+  for (int i = 0; i < MAX_TIROS_JOGADOR; i++) {
+    if (tirosJogador[i].ativo) {
+      if (fase <= 3) {
+        for (int j = 0; j < TOTAL_ALIENS; j++) {
+          if (aliens[j].vivo) {
+            if (tirosJogador[i].x + 4 >= aliens[j].x && tirosJogador[i].x <= aliens[j].x + 24 &&
+                tirosJogador[i].y >= aliens[j].y && tirosJogador[i].y <= aliens[j].y + 16) {
+              
+              tft.fillRect(aliens[j].x, aliens[j].y, 24, 16, TFT_BLACK);
+              aliens[j].vivo = false;
+              
+              tft.fillRect(tirosJogador[i].x, tirosJogador[i].y, 4, 12, TFT_BLACK);
+              tirosJogador[i].ativo = false;
+              
+              score += 10;
+              break;
+            }
+          }
+        }
+      } else if (fase == 4 && boss.vivo) {
+        if (tirosJogador[i].x + 4 >= boss.x && tirosJogador[i].x <= boss.x + 32 &&
+            tirosJogador[i].y >= boss.y && tirosJogador[i].y <= boss.y + 16) {
+          
+          tft.fillRect(boss.x, boss.y, 32, 16, TFT_BLACK); 
+          boss.hp--;
+          score += 50;
+          tft.fillRect(tirosJogador[i].x, tirosJogador[i].y, 4, 12, TFT_BLACK);
+          tirosJogador[i].ativo = false;
+          if (boss.hp <= 0) boss.vivo = false;
+        }
+      }
+    }
+  }
+  
+  if (tiroAlien.ativo) {
+    if (tiroAlien.x + 4 >= jogador.x && tiroAlien.x <= jogador.x + 24 &&
+        tiroAlien.y + 12 >= jogador.y && tiroAlien.y <= jogador.y + 16) {
+      
+      tft.fillRect(tiroAlien.x, tiroAlien.y, 4, 12, TFT_BLACK);
+      tiroAlien.ativo = false;
+      jogador.vidas--;
+      if (jogador.vidas <= 0) jogoAtivo = false;
+    }
+  }
+  
+  if (fase <= 3) {
+    bool vitoriaFase = true;
+    for (int i = 0; i < TOTAL_ALIENS; i++) {
+      if (aliens[i].vivo) { vitoriaFase = false; break; }
+    }
+    if (vitoriaFase) { fase++; iniciarFase(); }
+  } else if (fase == 4) {
+    if (!boss.vivo) { fase++; jogoAtivo = false; } 
+  }
 }
-}
-}
-}
-}
-// Varredura de intersecção: Projéteis Inimigos contra Casco do Jogador
-if (tiroAlien.ativo) {
-if (tiroAlien.x >= jogador.x && tiroAlien.x <= jogador.x + jogador.largura &&
-tiroAlien.y >= jogador.y && tiroAlien.y <= jogador.y + jogador.altura) {
-tiroAlien.ativo = false;
-jogador.vidas--;
-if (jogador.vidas <= 0) {
-jogoAtivo = false;
-}
-}
-}
-// Verificação de encerramento lógico por aniquilação completa de oponentes
-bool vitoriaCompleta = true;
-for (int i = 0; i < TOTAL_ALIENS; i++) {
-if (aliens[i].vivo) {
-vitoriaCompleta = false;
-break;
-}
-if (vitoriaCompleta) {
-jogoAtivo = false;
-}
-}
-}
+
 void renderizarJogo() {
-// Impressão estática persistente do placar e status do jogador
-tft.setTextColor(TFT_WHITE, TFT_BLACK);
-tft.drawString("SCORE: " + String(score), 5, 5, 2);
-tft.drawString("LIVES: " + String(jogador.vidas), LARGURA_TELA - 65, 5, 2);
-// Limpeza local localizada para suprimir artefatos gráficos de rastro
-tft.fillRect(0, jogador.y, LARGURA_TELA, jogador.altura, TFT_BLACK);
-desenharNave(jogador.x, jogador.y, TFT_GREEN);
-// Atualização gráfica seletiva das posições da frota
-for (int i = 0; i < TOTAL_ALIENS; i++) {
-if (aliens[i].vivo) {
-desenharAlien(aliens[i].x, aliens[i].y, TFT_WHITE);
-}
-}
-// Atualização seletiva e supressão de rastro dos projéteis ativos
-for (int i = 0; i < MAX_TIROS_JOGADOR; i++) {
-if (tirosJogador[i].ativo) {
-tft.drawFastVLine(tirosJogador[i].x, tirosJogador[i].y, 4, TFT_YELLOW);
-tft.drawFastVLine(tirosJogador[i].x, tirosJogador[i].y + 5, 2, TFT_BLACK);
-}
-}
-if (tiroAlien.ativo) {
-tft.drawFastVLine(tiroAlien.x, tiroAlien.y, 4, TFT_RED);
-tft.drawFastVLine(tiroAlien.x, tiroAlien.y - 5, 5, TFT_BLACK);
-}
-}
-void desenharNave(int x, int y, uint16_t cor) {
-// Desenho primitivo geométrico escalonado do caça do jogador
-tft.fillRect(x + 6, y, 4, 2, cor);
-tft.fillRect(x + 2, y + 2, 12, 2, cor);
-tft.fillRect(x, y + 4, 16, 4, cor);
-}
-void desenharAlien(int x, int y, uint16_t cor) {
-// Supressão ativa de rastro lateral provocada por movimentação horizontal
-tft.drawFastVLine(x - 2, y, 10, TFT_BLACK);
-tft.drawFastVLine(x + 12, y, 10, TFT_BLACK);
-tft.drawFastVLine(x + 13, y, 10, TFT_BLACK);
-tft.drawFastVLine(x - 1, y, 10, TFT_BLACK);
-// Renderização pontual do padrão geométrico do sprite alienígena
-tft.fillRect(x + 2, y, 8, 2, cor);
-tft.fillRect(x, y + 2, 12, 2, cor);
-tft.fillRect(x, y + 4, 12, 2, cor);
-tft.fillRect(x + 2, y + 6, 8, 2, cor);
-tft.fillRect(x, y + 8, 2, 2, cor);
-tft.fillRect(x + 10, y + 8, 2, 2, cor);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.drawString("SCORE: " + String(score), 5, 5, 2);
+  
+  if (fase == 4 && boss.vivo) {
+    tft.setTextColor(TFT_RED, TFT_BLACK);
+    tft.drawString("BOSS HP: " + String(boss.hp) + "  ", LARGURA_TELA - 90, 5, 2);
+  } else {
+    tft.drawString("LIVES: " + String(jogador.vidas), LARGURA_TELA - 65, 5, 2);
+  }
+  
+  tft.drawBitmap(jogador.x, jogador.y, bitmap_nave_24x16, 24, 16, TFT_GREEN, TFT_BLACK);
+  
+  if (fase <= 3) {
+    for (int i = 0; i < TOTAL_ALIENS; i++) {
+      if (aliens[i].vivo) tft.drawBitmap(aliens[i].x, aliens[i].y, bitmap_alien_24x16, 24, 16, TFT_WHITE, TFT_BLACK);
+    }
+  } else if (fase == 4 && boss.vivo) {
+    tft.drawBitmap(boss.x, boss.y, bitmap_boss_32x16, 32, 16, TFT_RED, TFT_BLACK);
+  }
+  
+  for (int i = 0; i < MAX_TIROS_JOGADOR; i++) {
+    if (tirosJogador[i].ativo) {
+      tft.fillRect(tirosJogador[i].x, tirosJogador[i].y, 4, 12, TFT_YELLOW);
+      tft.fillRect(tirosJogador[i].x, tirosJogador[i].y + 12, 4, 10, TFT_BLACK);
+    }
+  }
+  
+  if (tiroAlien.ativo) {
+    tft.fillRect(tiroAlien.x, tiroAlien.y, 4, 12, TFT_RED);
+    tft.fillRect(tiroAlien.x, tiroAlien.y - 8, 4, 8, TFT_BLACK);
+  }
 }
