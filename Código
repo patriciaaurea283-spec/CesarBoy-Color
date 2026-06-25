@@ -1,58 +1,278 @@
-# CesarBoy Color - Código
+#include <SPI.h>
+#include <TFT_eSPI.h>
+// Inicialização da instância do display gerenciado pela biblioteca TFT_eSPI
+TFT_eSPI tft = TFT_eSPI();
+// Definições físicas das portas de Entrada/Saída (GPIO)
+#define PIN_BTN_ESQUERDA 12
+#define PIN_BTN_DIREITA 13
+#define PIN_BTN_TIRO 14
+// Dimensões espaciais do ambiente gráfico do jogo
+#define LARGURA_TELA 240
+#define ALTURA_TELA 240
+// Estruturas de dados para gerenciamento das entidades do jogo
+struct Nave {
+int x;
+int y;
+int largura;
+int altura;
+int vidas;
+};
+struct Tiro {
+int x;
+int y;
+bool ativo;
+};
+struct Alien {
+  int x;
+  int y;
+  bool vivo;
+};
 
-#Base de Hardware
-ESP32-WROOM-32
-Display ST7789 240x320
-MicroSD
-Botões: D-Pad, A, B, Start e Select
-
-#Mapeamento de Pinos
-TFT ST7789
-MOSI = GPIO22
-SCK = GPIO23
-CS = GPIO0
-DC = GPIO5
-RST = GPIO16
-
-#MicroSD
-MOSI = GPIO22
-SCK = GPIO23
-MISO = GPIO19
-CS = GPIO17
-
-#Botões
-UP = GPIO12
-DOWN = GPIO13
-LEFT = GPIO14
-RIGHT = GPIO27
-A = GPIO26
-B = GPIO25
-START = GPIO33
-SELECT = GPIO32
-
-#Áudio (opcional) = GPIO21
-
-#Arquitetura Recomendada
-Inicialização:
-1. GPIO
-2. Display
-3. Cartão SD
-4. Áudio
-5. Launcher
-
-#Fluxo:
-ESP32 -> Splash Screen -> Menu -> Leitura do SD -> Lista de ROMs -> Execução do jogo
-
-#Estrutura do Cartão SD
-roms/gb
-roms/gbc
-saves/
-screenshots/
-
-Configuração ST7789
-#define ST7789_DRIVER
-#define TFT_RGB_ORDER TFT_BGR
-#define SPI_FREQUENCY 27000000
-
-#Integração com Retro-Go
-#Usar uma fork compatível com ST7789 e adaptar os arquivos de configuração para os GPIOs definidos acima. Testar TFT, botões e SD individualmente antes da integração completa.
+// Constantes estruturais de jogabilidade
+#define MAX_TIROS_JOGADOR 3
+#define QTD_ALIENS_LINHAS 4
+#define QTD_ALIENS_COLUNAS 5
+#define TOTAL_ALIENS (QTD_ALIENS_LINHAS * QTD_ALIENS_COLUNAS)
+// Alocação estática das variáveis de controle
+Nave jogador;
+Tiro tirosJogador[MAX_TIROS_JOGADOR];
+Alien aliens[TOTAL_ALIENS];
+Tiro tiroAlien;
+int score = 0;
+bool jogoAtivo = true;
+int direcaoAliens = 1; // 1: Direita | -1: Esquerda
+int velocidadeAliens = 2;
+unsigned long ultimoFrame = 0;
+const int frameDelay = 33; // Taxa de atualização aproximada de 30 FPS
+// Prototipagem modular das funções do sistema
+void inicializarJogo();
+void lerEntradas();
+void atualizarJogo();
+void renderizarJogo();
+void verificarColisoes();
+void desenharNave(int x, int y, uint16_t cor);
+void desenharAlien(int x, int y, uint16_t cor);
+void setup() {
+Serial.begin(115200);
+// Configuração dos pinos dos botões com resistores internos ativados
+pinMode(PIN_BTN_ESQUERDA, INPUT_PULLUP);
+pinMode(PIN_BTN_DIREITA, INPUT_PULLUP);
+pinMode(PIN_BTN_TIRO, INPUT_PULLUP);
+// Inicialização física do controlador gráfico do ST7789
+tft.init();
+tft.setRotation(1); // Ajusta a orientação conforme montagem mecânica
+tft.fillScreen(TFT_BLACK);
+inicializarJogo();
+}
+void loop() {
+// Controle estrito de temporização estável do Game Loop
+if (millis() - ultimoFrame >= frameDelay) {
+ultimoFrame = millis();
+if (jogoAtivo) {
+lerEntradas();
+atualizarJogo();
+verificarColisoes();
+renderizarJogo();
+} else {
+// Rotina gráfica de encerramento de partida (Fim de Jogo ou Vitória)
+if (score >= TOTAL_ALIENS * 10) {
+tft.setTextColor(TFT_GREEN, TFT_BLACK);
+tft.drawCentreString("VITORIA!", LARGURA_TELA / 2, ALTURA_TELA / 2 - 15, 4);
+} else {
+tft.setTextColor(TFT_RED, TFT_BLACK);
+tft.drawCentreString("GAME OVER", LARGURA_TELA / 2, ALTURA_TELA / 2 - 15, 4);
+}
++ 20, 2);
+tft.setTextColor(TFT_WHITE, TFT_BLACK);
+tft.drawCentreString("Pressione ATIRAR para reiniciar", LARGURA_TELA / 2, ALTURA_TELA / 2
+// Monitoramento para reinicialização rápida da partida
+if (digitalRead(PIN_BTN_TIRO) == LOW) {
+inicializarJogo();
+tft.fillScreen(TFT_BLACK);
+jogoAtivo = true;
+}
+}
+}
+}
+void inicializarJogo() {
+score = 0;
+jogador.largura = 16;
+jogador.altura = 8;
+jogador.x = (LARGURA_TELA - jogador.largura) / 2;
+jogador.y = ALTURA_TELA - 20;
+jogador.vidas = 3;
+// Reset do estado de vetores de projéteis do usuário
+for (int i = 0; i < MAX_TIROS_JOGADOR; i++) {
+tirosJogador[i].ativo = false;
+}
+// Reset do estado do projétil inimigo
+tiroAlien.ativo = false;
+// Construção e posicionamento matricial inicial da frota alienígena
+int index = 0;
+for (int l = 0; l < QTD_ALIENS_LINHAS; l++) {
+for (int c = 0; c < QTD_ALIENS_COLUNAS; c++) {
+aliens[index].x = 20 + c * 30;
+aliens[index].y = 35 + l * 18;
+aliens[index].vivo = true;
+index++;
+}
+}
+}
+void lerEntradas() {
+// Verificação de clique lógico (Botão ativo em nível lógico BAIXO devido ao Pull-Up)
+if (digitalRead(PIN_BTN_ESQUERDA) == LOW) {
+jogador.x -= 4;
+if (jogador.x < 0) jogador.x = 0;
+}
+if (digitalRead(PIN_BTN_DIREITA) == LOW) {
+jogador.x += 4;
+if (jogador.x > LARGURA_TELA - jogador.largura) jogador.x = LARGURA_TELA - jogador.largura;
+}
+if (digitalRead(PIN_BTN_TIRO) == LOW) {
+// Alocação dinâmica de tiro no primeiro slot ocioso identificado
+for (int i = 0; i < MAX_TIROS_JOGADOR; i++) {
+if (!tirosJogador[i].ativo) {
+tirosJogador[i].x = jogador.x + (jogador.largura / 2);
+tirosJogador[i].y = jogador.y - 4;
+tirosJogador[i].ativo = true;
+break;
+}
+}
+}
+}
+void atualizarJogo() {
+// Translação física ascendente dos disparos do jogador
+for (int i = 0; i < MAX_TIROS_JOGADOR; i++) {
+if (tirosJogador[i].ativo) {
+tirosJogador[i].y -= 6;
+if (tirosJogador[i].y < 0) {
+tirosJogador[i].ativo = false;
+}
+}
+}
+// Movimentação em bloco e inversão de sentido lateral da frota inimiga
+bool alcancouBorda = false;
+for (int i = 0; i < TOTAL_ALIENS; i++) {
+if (aliens[i].vivo) {
+aliens[i].x += direcaoAliens * velocidadeAliens;
+if (aliens[i].x > LARGURA_TELA - 14 || aliens[i].x < 2) {
+alcancouBorda = true;
+}
+}
+}
+if (alcancouBorda) {
+direcaoAliens = -direcaoAliens;
+for (int i = 0; i < TOTAL_ALIENS; i++) {
+aliens[i].y += 8;
+// Validação de condição de derrota por invasão de solo
+if (aliens[i].y >= jogador.y - 10 && aliens[i].vivo) {
+jogoAtivo = false;
+}
+}
+}
+// Gerador randômico de contra-ataques inimigos (IA simples de disparo)
+if (!tiroAlien.ativo && random(0, 40) == 7) {
+int alienSorteado = random(0, TOTAL_ALIENS);
+if (aliens[alienSorteado].vivo) {
+tiroAlien.x = aliens[alienSorteado].x + 6;
+tiroAlien.y = aliens[alienSorteado].y + 10;
+tiroAlien.ativo = true;
+}
+}
+// Translação física descendente dos projéteis inimigos
+if (tiroAlien.ativo) {
+tiroAlien.y += 5;
+if (tiroAlien.y > ALTURA_TELA) {
+tiroAlien.ativo = false;
+}
+}
+}
+void verificarColisoes() {
+// Varredura de intersecção: Projéteis do Jogador contra Matriz Alienígena
+for (int i = 0; i < MAX_TIROS_JOGADOR; i++) {
+if (tirosJogador[i].ativo) {
+for (int j = 0; j < TOTAL_ALIENS; j++) {
+if (aliens[j].vivo) {
+// Caixa de colisão baseada na área geométrica do sprite do alien (12x10)
+if (tirosJogador[i].x >= aliens[j].x && tirosJogador[i].x <= aliens[j].x + 12 &&
+tirosJogador[i].y >= aliens[j].y && tirosJogador[i].y <= aliens[j].y + 10) {
+// Eliminação pontual imediata com limpeza rápida de memória de tela
+tft.fillRect(aliens[j].x, aliens[j].y, 12, 10, TFT_BLACK);
+aliens[j].vivo = false;
+tirosJogador[i].ativo = false;
+score += 10;
+break;
+}
+}
+}
+}
+}
+// Varredura de intersecção: Projéteis Inimigos contra Casco do Jogador
+if (tiroAlien.ativo) {
+if (tiroAlien.x >= jogador.x && tiroAlien.x <= jogador.x + jogador.largura &&
+tiroAlien.y >= jogador.y && tiroAlien.y <= jogador.y + jogador.altura) {
+tiroAlien.ativo = false;
+jogador.vidas--;
+if (jogador.vidas <= 0) {
+jogoAtivo = false;
+}
+}
+}
+// Verificação de encerramento lógico por aniquilação completa de oponentes
+bool vitoriaCompleta = true;
+for (int i = 0; i < TOTAL_ALIENS; i++) {
+if (aliens[i].vivo) {
+vitoriaCompleta = false;
+break;
+}
+if (vitoriaCompleta) {
+jogoAtivo = false;
+}
+}
+}
+void renderizarJogo() {
+// Impressão estática persistente do placar e status do jogador
+tft.setTextColor(TFT_WHITE, TFT_BLACK);
+tft.drawString("SCORE: " + String(score), 5, 5, 2);
+tft.drawString("LIVES: " + String(jogador.vidas), LARGURA_TELA - 65, 5, 2);
+// Limpeza local localizada para suprimir artefatos gráficos de rastro
+tft.fillRect(0, jogador.y, LARGURA_TELA, jogador.altura, TFT_BLACK);
+desenharNave(jogador.x, jogador.y, TFT_GREEN);
+// Atualização gráfica seletiva das posições da frota
+for (int i = 0; i < TOTAL_ALIENS; i++) {
+if (aliens[i].vivo) {
+desenharAlien(aliens[i].x, aliens[i].y, TFT_WHITE);
+}
+}
+// Atualização seletiva e supressão de rastro dos projéteis ativos
+for (int i = 0; i < MAX_TIROS_JOGADOR; i++) {
+if (tirosJogador[i].ativo) {
+tft.drawFastVLine(tirosJogador[i].x, tirosJogador[i].y, 4, TFT_YELLOW);
+tft.drawFastVLine(tirosJogador[i].x, tirosJogador[i].y + 5, 2, TFT_BLACK);
+}
+}
+if (tiroAlien.ativo) {
+tft.drawFastVLine(tiroAlien.x, tiroAlien.y, 4, TFT_RED);
+tft.drawFastVLine(tiroAlien.x, tiroAlien.y - 5, 5, TFT_BLACK);
+}
+}
+void desenharNave(int x, int y, uint16_t cor) {
+// Desenho primitivo geométrico escalonado do caça do jogador
+tft.fillRect(x + 6, y, 4, 2, cor);
+tft.fillRect(x + 2, y + 2, 12, 2, cor);
+tft.fillRect(x, y + 4, 16, 4, cor);
+}
+void desenharAlien(int x, int y, uint16_t cor) {
+// Supressão ativa de rastro lateral provocada por movimentação horizontal
+tft.drawFastVLine(x - 2, y, 10, TFT_BLACK);
+tft.drawFastVLine(x + 12, y, 10, TFT_BLACK);
+tft.drawFastVLine(x + 13, y, 10, TFT_BLACK);
+tft.drawFastVLine(x - 1, y, 10, TFT_BLACK);
+// Renderização pontual do padrão geométrico do sprite alienígena
+tft.fillRect(x + 2, y, 8, 2, cor);
+tft.fillRect(x, y + 2, 12, 2, cor);
+tft.fillRect(x, y + 4, 12, 2, cor);
+tft.fillRect(x + 2, y + 6, 8, 2, cor);
+tft.fillRect(x, y + 8, 2, 2, cor);
+tft.fillRect(x + 10, y + 8, 2, 2, cor);
+}
