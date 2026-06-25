@@ -7,7 +7,6 @@ TFT_eSPI tft = TFT_eSPI();
 #define LARGURA_TELA 240
 #define ALTURA_TELA 320
 
-// --- NOVO SPRITE DA NAVE HD (24x16 pixels) ---
 const unsigned char bitmap_nave_24x16[] PROGMEM = {
   0x00, 0x18, 0x00, 0x00, 0x3C, 0x00, 0x00, 0x7E, 0x00, 0x00, 0xFF, 0x00, 
   0x01, 0xFF, 0x80, 0x03, 0xFF, 0xC0, 0x03, 0xFF, 0xC0, 0x07, 0xFF, 0xE0, 
@@ -15,7 +14,6 @@ const unsigned char bitmap_nave_24x16[] PROGMEM = {
   0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0x7E, 0x00, 0x7E
 };
 
-// --- NOVO SPRITE DO ALIEN HD (24x16 pixels) ---
 const unsigned char bitmap_alien_24x16[] PROGMEM = {
   0x00, 0x00, 0x00, 0x01, 0x00, 0x80, 0x03, 0x81, 0xC0, 0x07, 0xC3, 0xE0, 
   0x0F, 0xE7, 0xF0, 0x1F, 0xFF, 0xF8, 0x3F, 0xFF, 0xFC, 0x3F, 0x18, 0xFC, 
@@ -23,7 +21,6 @@ const unsigned char bitmap_alien_24x16[] PROGMEM = {
   0x07, 0x00, 0xE0, 0x03, 0x00, 0xC0, 0x0D, 0x00, 0xB0, 0x18, 0x00, 0x18
 };
 
-// --- SPRITE DO CHEFAO (32x16 pixels) ---
 const unsigned char bitmap_boss_32x16[] PROGMEM = {
   0x01, 0xFF, 0xFF, 0x80, 0x07, 0xFF, 0xFF, 0xE0, 0x1F, 0xFF, 0xFF, 0xF8, 
   0x3F, 0x00, 0x00, 0xFC, 0x7E, 0x3F, 0xFC, 0x7E, 0x7C, 0xFF, 0xFF, 0x3E, 
@@ -52,7 +49,7 @@ Tiro tiroAlien;
 int score = 0;
 int fase = 1;
 
-// Variáveis de Controle de Estado do Jogo
+
 bool aguardandoInicio = true; 
 bool jogoAtivo = false;       
 
@@ -92,7 +89,7 @@ void loop() {
   if (millis() - ultimoFrame >= frameDelay) {
     ultimoFrame = millis();
     
-    // ESTADO 1: TELA INICIAL (Aguardando Start)
+
     if (aguardandoInicio) {
       if (Serial.available() > 0) {
         char cmd = tolower(Serial.read());
@@ -103,14 +100,14 @@ void loop() {
         }
       }
     } 
-    // ESTADO 2: JOGANDO
+    
     else if (jogoAtivo) {
       lerEntradas();
       atualizarJogo();
       verificarColisoes();
       renderizarJogo();
     } 
-    // ESTADO 3: GAME OVER OU VITÓRIA
+   
     else {
       if (fase > 4) {
         tft.setTextColor(TFT_GREEN, TFT_BLACK);
@@ -222,8 +219,7 @@ void lerEntradas() {
     char comando = Serial.read(); // Lemos o char original sem converter para minúscula ainda
     tempoUltimoComando = millis();
     
-    // VERIFICAÇÃO PARA AS SETINHAS (Códigos ANSI que começam com ESC = 27)
-    if (comando == 27) {
+        if (comando == 27) {
       delay(2); // Pequena pausa para garantir que os próximos bytes chegaram na porta Serial
       if (Serial.available() >= 2) {
         char colchete = Serial.read();
@@ -235,7 +231,7 @@ void lerEntradas() {
         }
       }
     } 
-    // VERIFICAÇÃO PARA TECLAS NORMAIS (A, D, W, Espaço)
+    
     else {
       comando = tolower(comando);
       if (comando == 'a') direcaoNave = -1;
