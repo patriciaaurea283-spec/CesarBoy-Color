@@ -1,73 +1,20 @@
 # 🎮CESAR Boy
 
+Sobre - 
+O Space Invaders no ESP32 é um jogo arcade baseado no clássico absoluto dos videogames, totalmente desenvolvido para rodar de forma embarcada. O projeto combina a alta capacidade de processamento do microcontrolador ESP32 com a velocidade de atualização de um display LCD TFT colorido controlado pelo driver ST7789.  O sistema foi projetado para gerenciar, em tempo real, a lógica completa de estados do jogo, análise geométrica de colisões, movimentação sincronizada da frota inimiga e o controle simultâneo de múltiplos projéteis na tela. Tudo isso acionado por botões físicos configurados diretamente no microcontrolador, entregando uma experiência nostálgica, responsiva e de baixo custo.
 
--Sobre o Projeto
+- Objetivo do Projeto
+O principal objetivo do projeto é implementar uma versão totalmente funcional e fluida de Space Invaders, alcançando uma taxa de quadros estável de aproximadamente 30 FPS sem depender de nenhum hardware externo complexo de processamento gráfico.  Além disso, o projeto visa aplicar e consolidar conceitos práticos de:Programação em C++ voltada para arquiteturas de microcontroladores de alta performance (ESP32);  Otimização gráfica de baixo nível e manipulação seletiva de buffers em displays TFT;  Implementação de algoritmos de colisão por hitboxes e gerenciamento matricial de entidades;  Integração direta entre hardware e software através de varredura de entradas digitais.
 
-O Cesar Boy é um jogo portátil baseado no clássico Tetris, desenvolvido utilizando a plataforma ESP32. O projeto combina conceitos de programação embarcada, eletrônica e desenvolvimento de jogos para recriar a experiência do famoso jogo de encaixe de peças em um dispositivo compacto e de baixo custo.
+- Como o Sistema Funciona.
+  
+Ao energizar o sistema, o ESP32 inicializa a comunicação com o display ST7789 utilizando o barramento periférico de alta velocidade VSPI. Os pinos conectados aos botões de controle são configurados com resistores internos de Pull-Up ativos, dispensando componentes externos para estabilização de sinal.  A arquitetura do software é baseada em um Game Loop síncrono controlado de forma estrita pelo tempo de execução de milissegundos não bloqueantes (millis()), o que elimina atrasos estruturais prejudiciais (delay()). A cada ciclo, o sistema processa as seguintes etapas de forma coordenada:  Processamento de Entradas: Lê o estado lógico dos botões físicos para mover a nave para a esquerda ou direita e computar os comandos de disparo;  Cálculo Vetorial: Atualiza a translação física ascendente dos projéteis do jogador e a movimentação descendente dos contra-ataques inimigos;  Gerenciamento da Frota: Desloca a matriz de alienígenas em bloco pelas laterais e força a descida da linha sempre que a borda da tela é atingida;  Análise de Colisões: Varre a área geométrica dos elementos ativos para validar os impactos e atualizar as vidas do jogador e a pontuação global;  Renderização Otimizada: Atualiza apenas as regiões alteradas da tela para suprimir artefatos visuais de rastro e manter o desempenho estável.  O jogo segue ativo enquanto o jogador possuir vidas e a frota alienígena não invadir o solo. Caso todas as naves inimigas sejam eliminadas, a tela exibe a mensagem de vitória.
 
-O sistema utiliza um display TFT colorido para exibir o jogo, um módulo de áudio para reprodução de efeitos sonoros, um botão para interação com o jogador e uma bateria LiPo recarregável, permitindo seu funcionamento de forma totalmente portátil.
+- Componentes do Projeto.
 
--Objetivo do Projeto
+| Eletrônicos:1x Placa de desenvolvimento ESP32 DevKitC (Dual-Core Tensilica LX6, 240MHz);  1x Módulo Display LCD TFT Colorido de 1.3" ou 1.54" com controlador ST7789 (Resolução de 240x240 pixels via interface SPI);  3x Botões do tipo Push Button de quatro pinos (Configurados para movimentação e ação de tiro);  1x Protoboard para montagem rápida do circuito;  Jumpers de conexão do tipo macho-fêmea e macho-macho. 
 
-O principal objetivo do ESPTris é desenvolver uma versão funcional do jogo Tetris, demonstrando a capacidade do ESP32 para aplicações gráficas e interativas.
+- Resultado Esperado:
+Criar um console arcade de bolso totalmente funcional, robusto e de baixo custo. O dispositivo será capaz de rodar o clássico Space Invaders a estáveis 30 FPS, provando que conceitos eficientes de software e tratamento geométrico conseguem extrair gráficos fluidos diretamente de um microcontrolador embarcado.
 
-Além disso, o projeto busca aplicar na prática conceitos de:
-
-Programação em C para ESP32;
-Integração entre hardware e software;
-Manipulação gráfica em displays TFT;
-Controle de dispositivos eletrônicos;
-Prototipagem de sistemas interativos.
-
--Como o Sistema Funciona.
-
-Ao ligar o dispositivo, o ESP32 inicializa todos os componentes do sistema e exibe a interface do jogo no display TFT.
-
-As peças do Tetris são geradas automaticamente e exibidas na tela. O jogador utiliza o push button para realizar ações configuradas no jogo, como iniciar, pausar ou controlar as peças.
-
-O ESP32 processa as entradas recebidas, atualiza o estado do jogo em tempo real e envia os gráficos para o display TFT. Os efeitos sonoros são reproduzidos pelo módulo de áudio e enviados ao alto-falante.
-
-A alimentação do sistema é fornecida por uma bateria LiPo recarregável, permitindo que o jogo funcione de forma portátil sem necessidade de conexão contínua à energia.
-
--Componentes do Projeto.
-
-| Eletrônicos:
-
-1x ESP32 DevKit V1
-1x Display TFT 2.4" SPI
-1x Módulo de áudio
-1x Alto-falante
-1x Bateria LiPo 3.7V
-1x Push Button
-Jumpers e fios de conexão
-
-| Estrutura:
-
-suportes internos para os componentes
-
--Aprendizados Envolvidos.
-
-✔ Eletrônica:
-Circuitos eletrônicos
-Comunicação SPI
-Sistemas de áudio digital
-
-✔ Programação:
-Desenvolvimento para ESP32
-Controle de entradas e saídas
-Manipulação gráfica em displays TFT
-Gerenciamento de jogos e interfaces
-
-✔ Prototipagem:
-Montagem de dispositivos eletrônicos
-Integração de componentes
-
-✔ Trabalho em Equipe
-Planejamento do projeto
-Divisão de tarefas
-Resolução de problemas técnicos
-
--Resultado Esperado:
-Criar um console portátil funcional, compacto e de baixo custo, capaz de executar Tetris, demonstrando conhecimentos de programação, eletrônica e prototipagem em um único projeto.
-
--Sobre o vídeo explicando o projeto: 
+Link do vídeo sobre nosso projeto: https://canva.link/w89em01f1gehbxx
